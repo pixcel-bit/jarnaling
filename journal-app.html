@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ジャーナル">
+<title>📔 ジャーナル</title>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f0e8;
+    --paper: #fdfaf3;
+    --ink: #1a1410;
+    --ink-light: #6b5f50;
+    --accent: #c4622d;
+    --accent2: #2d6b8a;
+    --border: #d4c9b5;
+    --shadow: rgba(26,20,16,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(ellipse at 20% 50%, rgba(196,98,45,0.04) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(45,107,138,0.04) 0%, transparent 60%);
+    min-height: 100vh;
+    font-family: 'Shippori Mincho', serif;
+    color: var(--ink);
+    padding-top: max(env(safe-area-inset-top), 1.5rem);
+    padding-bottom: max(env(safe-area-inset-bottom), 1.5rem);
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  .container { max-width: 680px; margin: 0 auto; }
+
+  /* ---- SCREENS ---- */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ---- HEADER ---- */
+  header { text-align: center; margin-bottom: 2rem; position: relative; }
+  header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: 0.1em; }
+  header p { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--ink-light); letter-spacing: 0.15em; margin-top: 0.4rem; text-transform: uppercase; }
+  .divider { width: 48px; height: 2px; background: var(--accent); margin: 0.8rem auto; }
+  .settings-icon { position: absolute; right: 0; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--ink-light); padding: 0.5rem; }
+
+  /* ---- CARDS ---- */
+  .card {
+    background: var(--paper); border: 1px solid var(--border); border-radius: 2px;
+    padding: 1.5rem; box-shadow: 0 2px 16px var(--shadow), 0 0 0 1px rgba(255,255,255,0.5) inset;
+    margin-bottom: 1.5rem; position: relative;
+  }
+  .card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); border-radius: 2px 0 0 2px; }
+  .card.accent2::before { background: var(--accent2); }
+
+  /* ---- FORM ELEMENTS ---- */
+  label { display: block; font-family: 'DM Mono', monospace; font-size: 0.62rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-light); margin-bottom: 0.5rem; }
+  .field { margin-bottom: 1.3rem; }
+  .field:last-child { margin-bottom: 0; }
+  .title-wrapper { position: relative; }
+  input[type="text"], input[type="password"], textarea, select {
+    width: 100%; background: transparent; border: none; border-bottom: 1px solid var(--border);
+    padding: 0.5rem 0; font-family: 'Shippori Mincho', serif; font-size: 1rem; color: var(--ink);
+    outline: none; transition: border-color 0.2s; appearance: none; -webkit-appearance: none;
+  }
+  input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  textarea { min-height: 100px; resize: vertical; line-height: 1.8; }
+  select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b5f50' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 4px center; padding-right: 1.5rem;
+  }
+
+  /* ---- LOOKUP BUTTON ---- */
+  .lookup-btn {
+    position: absolute; right: 0; bottom: 6px;
+    font-family: 'DM Mono', monospace; font-size: 0.58rem; letter-spacing: 0.1em;
+    background: var(--accent2); color: white; border: none; padding: 0.25rem 0.7rem;
+    cursor: pointer; opacity: 0; transition: opacity 0.2s; border-radius: 1px;
+  }
+  .lookup-btn.visible { opacity: 1; }
+  .lookup-btn:disabled { background: var(--border); cursor: not-allowed; }
+  .info-badge { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.1em; color: var(--accent2); margin-top: 0.5rem; display: none; }
+  .info-badge.show { display: block; }
+
+  /* ---- GRID ---- */
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+
+  /* ---- STARS ---- */
+  .stars { display: flex; gap: 0.3rem; padding: 0.4rem 0; }
+  .star { font-size: 1.5rem; cursor: pointer; color: var(--border); transition: color 0.15s; user-select: none; -webkit-user-select: none; }
+  .star.active { color: var(--accent); }
+
+  /* ---- BUTTONS ---- */
+  .btn-group { display: flex; gap: 0.75rem; margin-top: 0.5rem; }
+  button { font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.75rem 1.2rem; border: none; cursor: pointer; transition: all 0.2s; border-radius: 1px; }
+  .btn-primary { background: var(--accent); color: white; flex: 1; }
+  .btn-primary:disabled { background: var(--border); cursor: not-allowed; }
+  .btn-secondary { background: transparent; color: var(--ink-light); border: 1px solid var(--border); }
+  .btn-full { width: 100%; background: var(--ink); color: white; margin-top: 0.5rem; }
+  .btn-full:disabled { background: var(--border); cursor: not-allowed; }
+  .btn-back { background: none; border: none; color: var(--ink-light); font-family: 'DM Mono', monospace; font-size: 0.65rem; letter-spacing: 0.1em; cursor: pointer; padding: 0; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.4rem; text-transform: uppercase; }
+
+  /* ---- STATUS ---- */
+  .status { font-family: 'DM Mono', monospace; font-size: 0.68rem; letter-spacing: 0.08em; padding: 0.8rem 1rem; border-radius: 2px; margin-top: 1rem; display: none; line-height: 1.5; }
+  .status.show { display: block; }
+  .status.loading { background: #f0ede6; color: var(--ink-light); }
+  .status.success { background: #e8f4e8; color: #2d6b3a; }
+  .status.error { background: #fce8e8; color: #8a2d2d; }
+  .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 0.5rem; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- RESULT CARD ---- */
+  .result-label { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent2); margin-bottom: 0.6rem; }
+  .summary-text { font-size: 1rem; line-height: 1.9; color: var(--ink); border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; }
+  .tags-preview { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .tag { font-family: 'DM Mono', monospace; font-size: 0.62rem; background: var(--bg); border: 1px solid var(--border); padding: 0.2rem 0.6rem; color: var(--ink-light); }
+
+  /* ---- SETTINGS ---- */
+  .settings-note { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--ink-light); line-height: 1.7; margin-bottom: 1.5rem; }
+  .settings-note a { color: var(--accent2); }
+  .key-display { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--ink-light); margin-top: 0.3rem; }
+  .key-display.set { color: #2d6b3a; }
+
+  /* ---- SETUP SCREEN ---- */
+  .setup-hero { text-align: center; padding: 2rem 0 1rem; }
+  .setup-hero .emoji { font-size: 3rem; margin-bottom: 1rem; display: block; }
+  .setup-hero h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .setup-hero p { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--ink-light); line-height: 1.7; }
+  .step { display: flex; gap: 1rem; margin-bottom: 1rem; align-items: flex-start; }
+  .step-num { font-family: 'DM Mono', monospace; font-size: 0.7rem; background: var(--accent); color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 0.1rem; }
+  .step-text { font-family: 'DM Mono', monospace; font-size: 0.68rem; color: var(--ink-light); line-height: 1.7; }
+  .step-text a { color: var(--accent2); }
+  .step-text strong { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- ==================== SETUP SCREEN ==================== -->
+  <div class="screen" id="screen-setup">
+    <div class="setup-hero">
+      <span class="emoji">📔</span>
+      <h2>初回設定</h2>
+      <p>APIキーを設定するとAI要約と<br>Notion保存が使えるようになります</p>
+    </div>
+
+    <div class="card" style="margin-top:1.5rem">
+      <div class="field">
+        <label>Claude APIキー</label>
+        <input type="password" id="setup-claude-key" placeholder="sk-ant-...">
+        <div class="key-display" id="setup-claude-status"></div>
+      </div>
+      <div class="field">
+        <label>Notion Integration Token</label>
+        <input type="password" id="setup-notion-key" placeholder="ntn_...">
+        <div class="key-display" id="setup-notion-status"></div>
+      </div>
+      <button class="btn-full" onclick="saveSettings()">設定を保存してはじめる</button>
+      <div class="status" id="setup-status"></div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <p style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink-light);margin-bottom:1rem;font-weight:bold;">キーの取得方法</p>
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text"><strong>Claude APIキー：</strong><a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key。Billingで$5チャージも必要です。</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text"><strong>Notion Token：</strong><a href="https://www.notion.so/my-integrations" target="_blank">notion.so/my-integrations</a> → New integration → トークンをコピー。その後「📔 ジャーナル」DBの右上「…」→「Connect to」で連携してください。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN SCREEN ==================== -->
+  <div class="screen" id="screen-main">
+    <header>
+      <h1>📔 ジャーナル</h1>
+      <div class="divider"></div>
+      <p>本・映画・漫画・日記の記録</p>
+      <button class="settings-icon" onclick="showSettings()" title="設定">⚙️</button>
+    </header>
+
+    <div class="card">
+      <div class="field">
+        <label>カテゴリ</label>
+        <select id="category" onchange="onCategoryChange()">
+          <option value="本">📚 本</option>
+          <option value="映画">🎬 映画</option>
+          <option value="ドラマ">📺 ドラマ</option>
+          <option value="漫画">📖 漫画</option>
+          <option value="日記・雑感">✏️ 日記・雑感</option>
+          <option value="その他">📌 その他</option>
+        </select>
+      </div>
+
+      <div class="field" id="title-field">
+        <label>タイトル</label>
+        <div class="title-wrapper">
+          <input type="text" id="title" placeholder="作品名を入力" oninput="onTitleInput()">
+          <button class="lookup-btn" id="lookup-btn" onclick="lookupInfo()">🔍 情報を取得</button>
+        </div>
+        <div class="info-badge" id="info-badge"></div>
+      </div>
+
+      <div class="field" id="author-field">
+        <label id="author-label">著者・監督・作者</label>
+        <input type="text" id="author" placeholder="名前を入力">
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>日付</label>
+          <input type="date" id="date">
+        </div>
+        <div class="field">
+          <label>評価</label>
+          <div class="stars">
+            <span class="star" data-val="1">★</span>
+            <span class="star" data-val="2">★</span>
+            <span class="star" data-val="3">★</span>
+            <span class="star" data-val="4">★</span>
+            <span class="star" data-val="5">★</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>感想メモ</label>
+        <textarea id="memo" placeholder="思ったこと、気になったシーン、心に残ったセリフなど…"></textarea>
+      </div>
+
+      <div class="btn-group">
+        <button class="btn-secondary" onclick="clearForm()">クリア</button>
+        <button class="btn-primary" id="summarize-btn" onclick="summarize()">✦ AIで整理する</button>
+      </div>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="card accent2" id="result-card" style="display:none">
+      <div class="result-label">✦ AIによる要約</div>
+      <div class="summary-text" id="summary-text"></div>
+      <div class="result-label" style="margin-bottom:0.4rem">タグ候補</div>
+      <div class="tags-preview" id="tags-preview"></div>
+      <button class="btn-full" id="save-btn" onclick="saveToNotion()">Notionに保存する</button>
+      <div class="status" id="save-status"></div>
+    </div>
+  </div>
+
+  <!-- ==================== SETTINGS SCREEN ==================== -->
+  <div class="screen" id="screen-settings">
+    <button class="btn-back" onclick="showMain()">← もどる</button>
+    <header style="text-align:left;margin-bottom:1.5rem">
+      <h1 style="font-size:1.3rem">⚙️ 設定</h1>
+    </header>
+
+    <div class="card">
+      <div class="field">
+        <label>Claude APIキー</label>
+        <input type="password" id="settings-claude-key" placeholder="sk-ant-...">
+        <div class="key-display" id="settings-claude-status"></div>
+      </div>
+      <div class="field">
+        <label>Notion Integration Token</label>
+        <input type="password" id="settings-notion-key" placeholder="ntn_...">
+        <div class="key-display" id="settings-notion-status"></div>
+      </div>
+      <button class="btn-full" onclick="saveSettings()">保存する</button>
+      <div class="status" id="settings-status"></div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <p style="font-family:'DM Mono',monospace;font-size:0.65rem;color:var(--ink-light);line-height:1.7;">
+        キーはこのデバイスのブラウザ内にのみ保存されます。外部に送信されることはありません。
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const NOTION_DB_ID = '84e95dbe-0396-452f-90a5-95fbc55cce16';
+  let rating = 0;
+  let summaryData = null;
+
+  // ==================== INIT ====================
+  function init() {
+    document.getElementById('date').value = new Date().toISOString().split('T')[0];
+    setupStars();
+
+    const claudeKey = localStorage.getItem('claude_api_key');
+    const notionKey = localStorage.getItem('notion_token');
+
+    if (!claudeKey || !notionKey) {
+      showScreen('setup');
+    } else {
+      showScreen('main');
+    }
+  }
+
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    if (name === 'settings') loadSettingsScreen();
+  }
+
+  function showSettings() { showScreen('settings'); }
+  function showMain() { showScreen('main'); }
+
+  // ==================== SETTINGS ====================
+  function loadSettingsScreen() {
+    const claudeKey = localStorage.getItem('claude_api_key') || '';
+    const notionKey = localStorage.getItem('notion_token') || '';
+    document.getElementById('settings-claude-key').value = '';
+    document.getElementById('settings-notion-key').value = '';
+    document.getElementById('settings-claude-status').textContent = claudeKey ? '✓ 設定済み' : '未設定';
+    document.getElementById('settings-claude-status').className = 'key-display' + (claudeKey ? ' set' : '');
+    document.getElementById('settings-notion-status').textContent = notionKey ? '✓ 設定済み' : '未設定';
+    document.getElementById('settings-notion-status').className = 'key-display' + (notionKey ? ' set' : '');
+  }
+
+  function saveSettings() {
+    const isSetup = document.getElementById('screen-setup').classList.contains('active');
+    const prefix = isSetup ? 'setup' : 'settings';
+
+    const claudeKey = document.getElementById(prefix + '-claude-key').value.trim();
+    const notionKey = document.getElementById(prefix + '-notion-key').value.trim();
+    const statusEl = document.getElementById(prefix + '-status');
+
+    if (!claudeKey || !notionKey) {
+      showStatus(statusEl, 'error', '両方のキーを入力してください');
+      return;
+    }
+    if (!claudeKey.startsWith('sk-ant-')) {
+      showStatus(statusEl, 'error', 'Claude APIキーは sk-ant- で始まります');
+      return;
+    }
+
+    localStorage.setItem('claude_api_key', claudeKey);
+    localStorage.setItem('notion_token', notionKey);
+    showStatus(statusEl, 'success', '✓ 保存しました');
+    setTimeout(() => showScreen('main'), 800);
+  }
+
+  // ==================== STARS ====================
+  function setupStars() {
+    document.querySelectorAll('.star').forEach(star => {
+      star.addEventListener('click', function() { rating = parseInt(this.dataset.val); updateStars(); });
+      star.addEventListener('mouseover', function() {
+        const val = parseInt(this.dataset.val);
+        document.querySelectorAll('.star').forEach(s => { s.style.color = parseInt(s.dataset.val) <= val ? 'var(--accent)' : 'var(--border)'; });
+      });
+      star.addEventListener('mouseout', updateStars);
+    });
+  }
+
+  function updateStars() {
+    document.querySelectorAll('.star').forEach(s => { s.classList.toggle('active', parseInt(s.dataset.val) <= rating); s.style.color = ''; });
+  }
+
+  // ==================== CATEGORY ====================
+  function onCategoryChange() {
+    const cat = document.getElementById('category').value;
+    const authorLabel = document.getElementById('author-label');
+    const authorField = document.getElementById('author-field');
+    if (cat === '日記・雑感') {
+      document.getElementById('title').placeholder = '今日のタイトル（省略可）';
+      authorField.style.display = 'none';
+      document.getElementById('lookup-btn').classList.remove('visible');
+    } else {
+      document.getElementById('title').placeholder = '作品名を入力';
+      authorField.style.display = 'block';
+      if (cat === '映画' || cat === 'ドラマ') authorLabel.textContent = '監督・制作';
+      else if (cat === '本') authorLabel.textContent = '著者';
+      else if (cat === '漫画') authorLabel.textContent = '作者';
+      else authorLabel.textContent = '著者・監督・作者';
+      if (document.getElementById('title').value.trim()) document.getElementById('lookup-btn').classList.add('visible');
+    }
+    document.getElementById('info-badge').classList.remove('show');
+  }
+
+  function onTitleInput() {
+    const cat = document.getElementById('category').value;
+    const val = document.getElementById('title').value.trim();
+    if (cat !== '日記・雑感') document.getElementById('lookup-btn').classList.toggle('visible', val.length > 0);
+    document.getElementById('info-badge').classList.remove('show');
+  }
+
+  // ==================== LOOKUP ====================
+  async function lookupInfo() {
+    const title = document.getElementById('title').value.trim();
+    const category = document.getElementById('category').value;
+    if (!title) return;
+    const claudeKey = localStorage.getItem('claude_api_key');
+    const btn = document.getElementById('lookup-btn');
+    btn.disabled = true; btn.textContent = '検索中…';
+    const badge = document.getElementById('info-badge');
+    badge.style.color = 'var(--accent2)';
+
+    const prompt = `「${title}」（カテゴリ: ${category}）の情報をウェブで検索してください。正式名称・著者/監督/作者・発売年または公開年を調べて、以下のJSONのみ返してください（説明文不要）:
+{"official_title":"正式タイトル","creator":"著者 or 監督 or 作者","year":"年"}
+不明な項目は空文字にしてください。`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, tools: [{ type: 'web_search_20250305', name: 'web_search' }], messages: [{ role: 'user', content: prompt }] })
+      });
+      const data = await res.json();
+      const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      const info = JSON.parse(text.replace(/```json|```/g, '').trim());
+      if (info.official_title) document.getElementById('title').value = info.official_title;
+      if (info.creator) document.getElementById('author').value = info.creator;
+      badge.textContent = '✓ 補完しました' + (info.year ? `（${info.year}年）` : '');
+      badge.classList.add('show');
+    } catch (e) {
+      badge.style.color = '#8a2d2d';
+      badge.textContent = '情報の取得に失敗しました';
+      badge.classList.add('show');
+    }
+    btn.disabled = false; btn.textContent = '🔍 情報を取得';
+  }
+
+  // ==================== SUMMARIZE ====================
+  function showStatus(el, type, msg) {
+    el.className = `status show ${type}`;
+    el.innerHTML = type === 'loading' ? `<span class="spinner"></span>${msg}` : msg;
+  }
+
+  async function summarize() {
+    const memo = document.getElementById('memo').value.trim();
+    if (!memo) { alert('感想メモを入力してください'); return; }
+    const claudeKey = localStorage.getItem('claude_api_key');
+    const category = document.getElementById('category').value;
+    const title = document.getElementById('title').value.trim();
+    const author = document.getElementById('author').value.trim();
+    const btn = document.getElementById('summarize-btn');
+    btn.disabled = true;
+    const statusEl = document.getElementById('status');
+    showStatus(statusEl, 'loading', 'AIが整理中…');
+
+    const prompt = `以下の感想メモを整理してください。
+カテゴリ: ${category}${title ? '\nタイトル: ' + title : ''}${author ? '\n著者/監督/作者: ' + author : ''}
+感想メモ: ${memo}
+以下のJSONのみ返してください:
+{"summary":"2〜3文の要約","tags":["タグ1","タグ2","タグ3"]}`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
+      });
+      const data = await res.json();
+      const text = data.content.map(b => b.text || '').join('');
+      summaryData = JSON.parse(text.replace(/```json|```/g, '').trim());
+      document.getElementById('summary-text').textContent = summaryData.summary;
+      document.getElementById('tags-preview').innerHTML = summaryData.tags.map(t => `<span class="tag">${t}</span>`).join('');
+      document.getElementById('result-card').style.display = 'block';
+      statusEl.className = 'status';
+      document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (e) {
+      showStatus(statusEl, 'error', 'エラーが発生しました。APIキーを確認してください。');
+    }
+    btn.disabled = false;
+  }
+
+  // ==================== SAVE TO NOTION ====================
+  async function saveToNotion() {
+    if (!summaryData) return;
+    const notionKey = localStorage.getItem('notion_token');
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    const saveStatus = document.getElementById('save-status');
+    showStatus(saveStatus, 'loading', 'Notionに保存中…');
+
+    const category = document.getElementById('category').value;
+    const title = document.getElementById('title').value.trim() || '（タイトルなし）';
+    const author = document.getElementById('author').value.trim();
+    const date = document.getElementById('date').value;
+    const memo = document.getElementById('memo').value.trim();
+    const starMap = ['', '★', '★★', '★★★', '★★★★', '★★★★★'];
+    const ratingStr = rating > 0 ? starMap[rating] : null;
+
+    const properties = {
+      'タイトル': { title: [{ text: { content: title } }] },
+      'カテゴリ': { select: { name: category } },
+      '一言まとめ': { rich_text: [{ text: { content: summaryData.summary } }] },
+      '感想メモ': { rich_text: [{ text: { content: memo } }] },
+      'タグ': { multi_select: summaryData.tags.map(t => ({ name: t })) },
+    };
+    if (author) properties['著者・監督・作者'] = { rich_text: [{ text: { content: author } }] };
+    if (date) properties['日付'] = { date: { start: date } };
+    if (ratingStr) properties['評価'] = { select: { name: ratingStr } };
+
+    try {
+      const res = await fetch('https://api.notion.com/v1/pages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${notionKey}`, 'Notion-Version': '2022-06-28' },
+        body: JSON.stringify({ parent: { database_id: NOTION_DB_ID }, properties })
+      });
+      const data = await res.json();
+      if (res.ok && data.id) {
+        showStatus(saveStatus, 'success', '✓ Notionに保存しました！');
+      } else {
+        throw new Error(data.message || '保存失敗');
+      }
+    } catch (e) {
+      showStatus(saveStatus, 'error', `保存に失敗しました。Notionトークンを確認してください。`);
+      btn.disabled = false;
+    }
+  }
+
+  // ==================== CLEAR ====================
+  function clearForm() {
+    ['title', 'author', 'memo'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('category').value = '本';
+    document.getElementById('lookup-btn').classList.remove('visible');
+    document.getElementById('info-badge').classList.remove('show');
+    rating = 0; updateStars();
+    document.getElementById('result-card').style.display = 'none';
+    document.getElementById('status').className = 'status';
+    document.getElementById('save-status').className = 'status';
+    summaryData = null;
+  }
+
+  init();
+</script>
+</body>
+</html>
