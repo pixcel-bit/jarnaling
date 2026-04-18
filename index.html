@@ -415,9 +415,11 @@
         body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, tools: [{ type: 'web_search_20250305', name: 'web_search' }], messages: [{ role: 'user', content: prompt }] })
       });
       const data = await res.json();
-      const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      console.log('[lookupInfo] API response:', JSON.stringify(data));
+      if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
       const start = text.indexOf('{'), end = text.lastIndexOf('}');
-      if (start === -1 || end === -1) throw new Error('no json');
+      if (start === -1 || end === -1) throw new Error('no json in: ' + text.slice(0, 200));
       const info = JSON.parse(text.substring(start, end + 1));
 
       if (info.official_title) document.getElementById('title').value = info.official_title;
@@ -428,8 +430,9 @@
       badge.textContent = '✓ 補完しました' + (meta.length ? '（' + meta.join('・') + '）' : '');
       badge.classList.add('show');
     } catch (e) {
+      console.error('[lookupInfo] error:', e);
       badge.style.color = '#8a2d2d';
-      badge.textContent = '情報の取得に失敗しました';
+      badge.textContent = '情報の取得に失敗しました: ' + e.message;
       badge.classList.add('show');
     }
     btn.disabled = false; btn.textContent = '🔍 情報を取得';
