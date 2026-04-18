@@ -398,22 +398,34 @@
     const badge = document.getElementById('info-badge');
     badge.style.color = 'var(--accent2)';
 
-    const prompt = `「${title}」（カテゴリ: ${category}）の情報をウェブで検索してください。正式名称・著者/監督/作者・発売年または公開年を調べて、以下のJSONのみ返してください（説明文不要）:
-{"official_title":"正式タイトル","creator":"著者 or 監督 or 作者","year":"年"}
-不明な項目は空文字にしてください。`;
+    const schemaMap = {
+      '映画':   '{"official_title":"正式邦題または原題","director":"監督名","year":"公開年（西暦4桁）","genre":"ジャンル","country":"制作国"}',
+      'ドラマ': '{"official_title":"正式邦題または原題","director":"監督または制作","year":"放送開始年（西暦4桁）","genre":"ジャンル","country":"制作国"}',
+      '本':     '{"official_title":"正式タイトル","author":"著者名","year":"出版年（西暦4桁）","publisher":"出版社","genre":"ジャンル"}',
+      '漫画':   '{"official_title":"正式タイトル","author":"作者名","year":"連載開始年（西暦4桁）","publisher":"出版社・掲載誌","genre":"ジャンル"}',
+    };
+    const schema = schemaMap[category] || '{"official_title":"正式タイトル","creator":"作者または制作者","year":"年（西暦4桁）","genre":"ジャンル"}';
+
+    const prompt = `「${title}」（カテゴリ: ${category}）をウェブで検索して正確な情報を調べてください。以下のJSONのみ返してください（前後に説明文不要）:\n${schema}\n不明な項目は空文字にしてください。`;
 
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 500, tools: [{ type: 'web_search_20250305', name: 'web_search' }], messages: [{ role: 'user', content: prompt }] })
+        body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, tools: [{ type: 'web_search_20250305', name: 'web_search' }], messages: [{ role: 'user', content: prompt }] })
       });
       const data = await res.json();
       const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
-      const info = JSON.parse(text.replace(/```json|```/g, '').trim());
+      const start = text.indexOf('{'), end = text.lastIndexOf('}');
+      if (start === -1 || end === -1) throw new Error('no json');
+      const info = JSON.parse(text.substring(start, end + 1));
+
       if (info.official_title) document.getElementById('title').value = info.official_title;
-      if (info.creator) document.getElementById('author').value = info.creator;
-      badge.textContent = '✓ 補完しました' + (info.year ? `（${info.year}年）` : '');
+      const creator = info.director || info.author || info.creator || '';
+      if (creator) document.getElementById('author').value = creator;
+
+      const meta = [info.year ? info.year + '年' : '', info.genre, info.publisher, info.country].filter(Boolean);
+      badge.textContent = '✓ 補完しました' + (meta.length ? '（' + meta.join('・') + '）' : '');
       badge.classList.add('show');
     } catch (e) {
       badge.style.color = '#8a2d2d';
