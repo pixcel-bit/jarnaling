@@ -324,15 +324,18 @@
     const isSetup = document.getElementById('screen-setup').classList.contains('active');
     const prefix = isSetup ? 'setup' : 'settings';
 
-    const claudeKey = document.getElementById(prefix + '-claude-key').value.trim();
-    const notionKey = document.getElementById(prefix + '-notion-key').value.trim();
+    const claudeKeyInput = document.getElementById(prefix + '-claude-key').value.trim();
+    const notionKeyInput = document.getElementById(prefix + '-notion-key').value.trim();
     const statusEl = document.getElementById(prefix + '-status');
+
+    const claudeKey = claudeKeyInput || (isSetup ? '' : localStorage.getItem('claude_api_key') || '');
+    const notionKey = notionKeyInput || (isSetup ? '' : localStorage.getItem('notion_token') || '');
 
     if (!claudeKey || !notionKey) {
       showStatus(statusEl, 'error', '両方のキーを入力してください');
       return;
     }
-    if (!claudeKey.startsWith('sk-ant-')) {
+    if (claudeKeyInput && !claudeKeyInput.startsWith('sk-ant-')) {
       showStatus(statusEl, 'error', 'Claude APIキーは sk-ant- で始まります');
       return;
     }
