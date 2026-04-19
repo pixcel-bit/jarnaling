@@ -427,6 +427,19 @@
   }
 
   // ==================== LOOKUP ====================
+  async function callClaudeForInfo(prompt, useWebSearch, claudeKey) {
+    const body = { model: 'claude-sonnet-4-6', max_tokens: 1024, messages: [{ role: 'user', content: prompt }] };
+    if (useWebSearch) body.tools = [{ type: 'web_search_20250305', name: 'web_search' }];
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+    return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+  }
+
   async function lookupInfo() {
     const title = document.getElementById('title').value.trim();
     const category = document.getElementById('category').value;
@@ -444,19 +457,18 @@
       '漫画':   '{"official_title":"正式タイトル","author":"作者名","year":"連載開始年（西暦4桁）","publisher":"出版社・掲載誌","genre":"ジャンル"}',
     };
     const schema = schemaMap[category] || '{"official_title":"正式タイトル","creator":"作者または制作者","year":"年（西暦4桁）","genre":"ジャンル"}';
-
-    const prompt = `「${title}」（カテゴリ: ${category}）をウェブで検索して正確な情報を調べてください。以下のJSONのみ返してください（前後に説明文不要）:\n${schema}\n不明な項目は空文字にしてください。`;
+    const prompt = `「${title}」（カテゴリ: ${category}）の情報を調べてください。以下のJSONのみ返してください（前後に説明文不要）:\n${schema}\n不明な項目は空文字にしてください。`;
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': claudeKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1024, tools: [{ type: 'web_search_20250305', name: 'web_search' }], messages: [{ role: 'user', content: prompt }] })
-      });
-      const data = await res.json();
-      console.log('[lookupInfo] API response:', JSON.stringify(data));
-      if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
-      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      let text;
+      try {
+        text = await callClaudeForInfo(prompt, true, claudeKey);
+      } catch (e) {
+        // web_search使用不可の場合はフォールバック
+        text = await callClaudeForInfo(prompt, false, claudeKey);
+        badge.style.color = 'var(--ink-light)';
+      }
+
       const start = text.indexOf('{'), end = text.lastIndexOf('}');
       if (start === -1 || end === -1) throw new Error('no json in: ' + text.slice(0, 200));
       const info = JSON.parse(text.substring(start, end + 1));
