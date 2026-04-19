@@ -275,6 +275,14 @@
         キーはこのデバイスのブラウザ内にのみ保存されます。外部に送信されることはありません。
       </p>
     </div>
+
+    <div class="card" style="margin-top:0">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.8rem;">
+        <label style="margin:0">エラーログ</label>
+        <button onclick="clearErrorLogs()" style="background:none;border:1px solid var(--border);font-family:'DM Mono',monospace;font-size:0.6rem;padding:0.2rem 0.6rem;cursor:pointer;color:var(--ink-light);border-radius:2px;">クリア</button>
+      </div>
+      <div id="error-log-list" style="font-family:'DM Mono',monospace;font-size:0.6rem;color:var(--ink-light);line-height:1.8;max-height:200px;overflow-y:auto;"></div>
+    </div>
   </div>
 
 </div>
@@ -283,6 +291,33 @@
   const NOTION_DB_ID = '84e95dbe-0396-452f-90a5-95fbc55cce16';
   let rating = 0;
   let summaryData = null;
+
+  // ==================== ERROR LOG ====================
+  function logError(context, err, responseData) {
+    const logs = JSON.parse(localStorage.getItem('error_logs') || '[]');
+    logs.unshift({
+      t: new Date().toLocaleString('ja-JP'),
+      ctx: context,
+      msg: err.message || String(err),
+      res: responseData ? JSON.stringify(responseData).slice(0, 300) : null
+    });
+    localStorage.setItem('error_logs', JSON.stringify(logs.slice(0, 15)));
+  }
+
+  function renderErrorLogs() {
+    const el = document.getElementById('error-log-list');
+    if (!el) return;
+    const logs = JSON.parse(localStorage.getItem('error_logs') || '[]');
+    if (!logs.length) { el.textContent = 'なし'; return; }
+    el.innerHTML = logs.map(l =>
+      `<div style="border-bottom:1px solid var(--border);padding:0.3rem 0"><span style="color:var(--accent)">[${l.ctx}]</span> ${l.t}<br>${l.msg}${l.res ? '<br><span style="color:#999">' + l.res + '</span>' : ''}</div>`
+    ).join('');
+  }
+
+  function clearErrorLogs() {
+    localStorage.removeItem('error_logs');
+    renderErrorLogs();
+  }
 
   // ==================== INIT ====================
   function init() {
@@ -318,21 +353,25 @@
     document.getElementById('settings-claude-status').className = 'key-display' + (claudeKey ? ' set' : '');
     document.getElementById('settings-notion-status').textContent = notionKey ? '✓ 設定済み' : '未設定';
     document.getElementById('settings-notion-status').className = 'key-display' + (notionKey ? ' set' : '');
+    renderErrorLogs();
   }
 
   function saveSettings() {
     const isSetup = document.getElementById('screen-setup').classList.contains('active');
     const prefix = isSetup ? 'setup' : 'settings';
 
-    const claudeKey = document.getElementById(prefix + '-claude-key').value.trim();
-    const notionKey = document.getElementById(prefix + '-notion-key').value.trim();
+    const claudeKeyInput = document.getElementById(prefix + '-claude-key').value.trim();
+    const notionKeyInput = document.getElementById(prefix + '-notion-key').value.trim();
     const statusEl = document.getElementById(prefix + '-status');
+
+    const claudeKey = claudeKeyInput || (isSetup ? '' : localStorage.getItem('claude_api_key') || '');
+    const notionKey = notionKeyInput || (isSetup ? '' : localStorage.getItem('notion_token') || '');
 
     if (!claudeKey || !notionKey) {
       showStatus(statusEl, 'error', '両方のキーを入力してください');
       return;
     }
-    if (!claudeKey.startsWith('sk-ant-')) {
+    if (claudeKeyInput && !claudeKeyInput.startsWith('sk-ant-')) {
       showStatus(statusEl, 'error', 'Claude APIキーは sk-ant- で始まります');
       return;
     }
@@ -415,9 +454,11 @@
         body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1024, tools: [{ type: 'web_search_20250305', name: 'web_search' }], messages: [{ role: 'user', content: prompt }] })
       });
       const data = await res.json();
-      const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      console.log('[lookupInfo] API response:', JSON.stringify(data));
+      if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
+      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
       const start = text.indexOf('{'), end = text.lastIndexOf('}');
-      if (start === -1 || end === -1) throw new Error('no json');
+      if (start === -1 || end === -1) throw new Error('no json in: ' + text.slice(0, 200));
       const info = JSON.parse(text.substring(start, end + 1));
 
       if (info.official_title) document.getElementById('title').value = info.official_title;
@@ -428,8 +469,9 @@
       badge.textContent = '✓ 補完しました' + (meta.length ? '（' + meta.join('・') + '）' : '');
       badge.classList.add('show');
     } catch (e) {
+      logError('lookupInfo', e);
       badge.style.color = '#8a2d2d';
-      badge.textContent = '情報の取得に失敗しました';
+      badge.textContent = '情報の取得に失敗しました: ' + e.message;
       badge.classList.add('show');
     }
     btn.disabled = false; btn.textContent = '🔍 情報を取得';
@@ -466,6 +508,7 @@
         body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 1000, messages: [{ role: 'user', content: prompt }] })
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
       const text = data.content.map(b => b.text || '').join('');
       summaryData = JSON.parse(text.replace(/```json|```/g, '').trim());
       document.getElementById('summary-text').textContent = summaryData.summary;
@@ -474,7 +517,8 @@
       statusEl.className = 'status';
       document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (e) {
-      showStatus(statusEl, 'error', 'エラーが発生しました。APIキーを確認してください。');
+      logError('summarize', e);
+      showStatus(statusEl, 'error', 'エラー: ' + e.message);
     }
     btn.disabled = false;
   }
