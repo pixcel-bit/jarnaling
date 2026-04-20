@@ -112,7 +112,7 @@
 
   /* ---- RESULT CARD ---- */
   .result-label { font-family: 'DM Mono', monospace; font-size: 0.6rem; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent2); margin-bottom: 0.6rem; }
-  .summary-text { font-size: 1rem; line-height: 1.9; color: var(--ink); border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; }
+  .summary-text { font-size: 1rem; line-height: 1.9; color: var(--ink); border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; min-height: 80px; resize: vertical; width: 100%; background: transparent; border-top: none; border-left: none; border-right: none; outline: none; font-family: 'Shippori Mincho', serif; }
   .tags-preview { display: flex; flex-wrap: wrap; gap: 0.4rem; }
   .tag { font-family: 'DM Mono', monospace; font-size: 0.62rem; background: var(--bg); border: 1px solid var(--border); padding: 0.2rem 0.6rem; color: var(--ink-light); }
 
@@ -239,8 +239,8 @@
     </div>
 
     <div class="card accent2" id="result-card" style="display:none">
-      <div class="result-label">✦ AIによる要約</div>
-      <div class="summary-text" id="summary-text"></div>
+      <div class="result-label">✦ AIによる要約（編集可）</div>
+      <textarea class="summary-text" id="summary-text"></textarea>
       <div class="result-label" style="margin-bottom:0.4rem">タグ候補</div>
       <div class="tags-preview" id="tags-preview"></div>
       <button class="btn-full" id="save-btn" onclick="saveToNotion()">Notionに保存する</button>
@@ -523,7 +523,7 @@
       if (!res.ok) throw new Error(data.error?.message || `HTTP ${res.status}`);
       const text = data.content.map(b => b.text || '').join('');
       summaryData = JSON.parse(text.replace(/```json|```/g, '').trim());
-      document.getElementById('summary-text').textContent = summaryData.summary;
+      document.getElementById('summary-text').value = summaryData.summary;
       document.getElementById('tags-preview').innerHTML = summaryData.tags.map(t => `<span class="tag">${t}</span>`).join('');
       document.getElementById('result-card').style.display = 'block';
       statusEl.className = 'status';
@@ -547,7 +547,7 @@
     const payload = {
       title:    document.getElementById('title').value.trim() || '（タイトルなし）',
       category: document.getElementById('category').value,
-      summary:  summaryData.summary,
+      summary:  document.getElementById('summary-text').value.trim(),
       memo:     document.getElementById('memo').value.trim(),
       tags:     summaryData.tags.join(','),
       author:   document.getElementById('author').value.trim(),
