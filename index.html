@@ -190,6 +190,7 @@
           <option value="映画">🎬 映画</option>
           <option value="ドラマ">📺 ドラマ</option>
           <option value="漫画">📖 漫画</option>
+          <option value="音楽">🎵 音楽</option>
           <option value="日記・雑感">✏️ 日記・雑感</option>
           <option value="その他">📌 その他</option>
         </select>
@@ -413,6 +414,7 @@
       if (cat === '映画' || cat === 'ドラマ') authorLabel.textContent = '監督・制作';
       else if (cat === '本') authorLabel.textContent = '著者';
       else if (cat === '漫画') authorLabel.textContent = '作者';
+      else if (cat === '音楽') authorLabel.textContent = 'アーティスト';
       else authorLabel.textContent = '著者・監督・作者';
       if (document.getElementById('title').value.trim()) document.getElementById('lookup-btn').classList.add('visible');
     }
@@ -455,6 +457,7 @@
       'ドラマ': '{"official_title":"正式邦題または原題","director":"監督または制作","year":"放送開始年（西暦4桁）","genre":"ジャンル","country":"制作国"}',
       '本':     '{"official_title":"正式タイトル","author":"著者名","year":"出版年（西暦4桁）","publisher":"出版社","genre":"ジャンル"}',
       '漫画':   '{"official_title":"正式タイトル","author":"作者名","year":"連載開始年（西暦4桁）","publisher":"出版社・掲載誌","genre":"ジャンル"}',
+      '音楽':   '{"official_title":"正式アルバム/曲名","author":"アーティスト名","year":"リリース年（西暦4桁）","genre":"ジャンル","label":"レーベル"}',
     };
     const schema = schemaMap[category] || '{"official_title":"正式タイトル","creator":"作者または制作者","year":"年（西暦4桁）","genre":"ジャンル"}';
     const prompt = `「${title}」（カテゴリ: ${category}）の情報を調べてください。以下のJSONのみ返してください（前後に説明文不要）:\n${schema}\n不明な項目は空文字にしてください。`;
